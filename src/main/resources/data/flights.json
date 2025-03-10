@@ -1,0 +1,106 @@
+[
+  {
+    "flight_date": "2025-03-12T14:17:17+00:00",
+    "arrival_date": "2025-03-12T19:47:00+00:00",
+    "airline_name": "Fly2Sky",
+    "departure_airport": "Tallinn",
+    "destination_airport": "Sharm el-Sheikh",
+    "price": 350
+  },
+  {
+    "flight_date": "2025-03-15T15:08:25+00:00",
+    "arrival_date": "2025-03-15T09:33:00+00:00",
+    "airline_name": "Air Canada",
+    "departure_airport": "Tallinn",
+    "destination_airport": "Amsterdam",
+    "price": 210
+  },
+  {
+    "flight_date": "2025-03-19T23:11:14+00:00",
+    "arrival_date": "2025-03-19T09:27:00+00:00",
+    "airline_name": "Air France",
+    "departure_airport": "Tallinn",
+    "destination_airport": "Riga",
+    "price": 120
+  },
+  {
+    "flight_date": "2025-03-17T14:32:53+00:00",
+    "arrival_date": "2025-03-17T18:35:44+00:00",
+    "airline_name": "Fly2Sky",
+    "departure_airport": "Tallinn",
+    "destination_airport": "Copenhagen",
+    "price": 150
+  },
+  {
+    "flight_date": "2025-03-21T15:21:25+00:00",
+    "arrival_date": "2025-03-21T21:35:44+00:00",
+    "airline_name": "Ryanair",
+    "departure_airport": "Tallinn",
+    "destination_airport": "Frankfurt",
+    "price": 200
+  },
+  {
+    "flight_date": "2025-03-27T06:53:23+00:00",
+    "arrival_date": "2025-03-27T21:35:44+00:00",
+    "airline_name": "EasyJet",
+    "departure_airport": "Tallinn",
+    "destination_airport": "Copenhagen",
+    "price": 130
+  },
+  {
+    "flight_date": "2025-03-09T01:44:33+00:00",
+    "arrival_date": "2025-03-09T19:35:44+00:00",
+    "airline_name": "Air Canada",
+    "departure_airport": "Tallinn",
+    "destination_airport": "Riga",
+    "price": 95
+  },
+  {
+    "flight_date": "2025-03-27T05:12:05+00:00",
+    "arrival_date": "2025-03-27T21:35:44+00:00",
+    "airline_name": "Lufthansa",
+    "departure_airport": "Tallinn",
+    "destination_airport": "Stockholm",
+    "price": 180
+  },
+  {
+    "flight_date": "2025-03-20T08:55:54+00:00",
+    "arrival_date": "2025-03-20T20:35:44+00:00",
+    "airline_name": "KLM",
+    "departure_airport": "Tallinn",
+    "destination_airport": "Amsterdam",
+    "price": 210
+  },
+  {
+    "flight_date": "2025-03-13T05:44:19+00:00",
+    "arrival_date": "2025-03-13T21:35:44+00:00",
+    "airline_name": "Ryanair",
+    "departure_airport": "Tallinn",
+    "destination_airport": "Barcelona",
+    "price": 250
+  },
+  {
+    "flight_date": "2025-03-27T21:21:10+00:00",
+    "arrival_date": "2025-03-27T18:35:44+00:00",
+    "airline_name": "Wizz Air",
+    "departure_airport": "Tallinn",
+    "destination_airport": "Stockholm",
+    "price": 160
+  },
+  {
+    "flight_date": "2025-03-20T11:54:28+00:00",
+    "arrival_date": "2025-03-20T18:35:44+00:00",
+    "airline_name": "Fly2Sky",
+    "departure_airport": "Tallinn",
+    "destination_airport": "Frankfurt",
+    "price": 230
+  },
+  {
+    "flight_date": "2025-03-20T23:19:37+00:00",
+    "arrival_date": "2025-03-20T18:35:44+00:00",
+    "airline_name": "Norwegian",
+    "departure_airport": "Tallinn",
+    "destination_airport": "Copenhagen",
+    "price": 160
+  }
+]
