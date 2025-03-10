@@ -62,14 +62,14 @@ public class FlightRepository {
         // kasutan h2 andmebaasi, et simuleerida andmebaasiga tööd
         logger.info("creating table");
         jdbcClient.sql(
-                "INSERT INTO flights(id, airline, departure_airport, destination_airport, arrival_date, flight_date, price) values(:id, :airline, :departureAirport, :destinationAirport, :flightArrivalDate, :flightDate, :price)")
+                "INSERT INTO flights(id, airline_name, departure_airport, destination_airport, arrival_date, flight_date, price) values(:id, :airline, :departureAirport, :destinationAirport, :flightArrivalDate, :flightDate, :price)")
                 .param("id", id)
-                .param("airline", flight.getAirline_name())
-                .param("departureAirport", flight.getDeparture_airport())
-                .param("destinationAirport", flight.getDestination_airport())
-                .param("flightArrivalDate", flight.getArrival_date())
-                .param("flightDate", flight.getFlight_date())
-                .param("price", flight.getPrice())
+                .param("airline", flight.airline_name())
+                .param("departureAirport", flight.departure_airport())
+                .param("destinationAirport", flight.destination_airport())
+                .param("flightArrivalDate", flight.arrival_date())
+                .param("flightDate", flight.flight_date())
+                .param("price", flight.price())
                 .update();
         saveSeatsToDB(flight, id);
     }
@@ -77,7 +77,7 @@ public class FlightRepository {
     public void saveAll(List<Flight> flights) {
         int id = 1;
         jdbcClient.sql(
-                "CREATE TABLE flights (id INT PRIMARY KEY, airline VARCHAR(255), departure_airport VARCHAR(255), destination_airport VARCHAR(255), arrival_date DATETIME, flight_date DATETIME, price integer)")
+                "CREATE TABLE flights (id INT PRIMARY KEY, airline_name VARCHAR(255), departure_airport VARCHAR(255), destination_airport VARCHAR(255), arrival_date DATETIME, flight_date DATETIME, price integer)")
                 .update();
 
         // teen eraldi tabeli kohtade hoimdiseks
@@ -150,7 +150,7 @@ public class FlightRepository {
         }
 
         if (airlineName != null) {
-            sql.append(" AND airline = ?");
+            sql.append(" AND airline_name = ?");
             params.add(airlineName);
         }
 
@@ -176,11 +176,10 @@ public class FlightRepository {
                 .query(String.class)
                 .list();
     }
-
     // teen koha tähisest char numbrid ja vaatan kui palju kahe koha numbrid
     // erinevad
     boolean areSeatsTogether(String seatA, String seatB) {
-        int difference = Math.abs(seatA.charAt(0) + seatA.charAt(1) - seatB.charAt(0) + seatB.charAt(1));
+        int difference = Math.abs((seatA.charAt(0) + seatA.charAt(1)) - (seatB.charAt(0) + seatB.charAt(1)));
 
         if (seatA.charAt(0) == seatB.charAt(0) && difference < 2)
             return true;
@@ -189,7 +188,7 @@ public class FlightRepository {
     }
 
     List<String> recommendedSeats(Integer id, Integer nr) {
-        List<String> freeSeats = jdbcClient.sql("SELECT seat_id from seats where flight_id = ? and not is_taken;")
+        List<String> freeSeats = jdbcClient.sql("SELECT seat_id from seats where flight_id = ? and not is_taken ORDER BY seat_id;")
                 .params(id)
                 .query(String.class)
                 .list();
@@ -203,10 +202,26 @@ public class FlightRepository {
                 currentConsecutiveSeats.add(freeSeats.get(i));
                 currentConsecutiveSeats.add(freeSeats.get(i + 1));
             } else if (count > 0) {
+                if (count >= nr) {
+                    return new ArrayList<String>(currentConsecutiveSeats.subList(0, nr));
+                }
                 count = 0;
+                consecutiveSeats.add(currentConsecutiveSeats);
+                currentConsecutiveSeats = new ArrayList<>();
+                i++;
             }
         }
+        consecutiveSeats.sort((listA, listB) -> {
+            return listA.size() - listB.size();
+        });
 
-        return null;
+        List<String> returnList = new ArrayList<>();
+        int i = 0;
+        while (returnList.size() < nr) {
+            returnList.addAll(consecutiveSeats.get(i));
+            i++;
+        }
+
+        return new ArrayList<String>(currentConsecutiveSeats.subList(0, nr));
     }
 }

@@ -4,9 +4,9 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class LennuRakendusApplication {
+public class LennukiRakendusApplication {
     
     public static void main(String[] args) {
-        SpringApplication.run(LennuRakendusApplication.class, args);
+        SpringApplication.run(LennukiRakendusApplication.class, args);
     }
 }
