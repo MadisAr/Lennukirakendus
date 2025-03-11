@@ -42,7 +42,6 @@ public class FlightRepository {
 
     // Salvestan lennuki kohad andmebaasi, lisades iga koha täidetuse staatuse
     public void saveSeatsToDB(Flight flight, int id) {
-        logger.info("saving seats");
         Boolean[] takenSeats = randomizeSeats();
         int i = 1;
         int j = 0;
@@ -65,7 +64,6 @@ public class FlightRepository {
 
     // Salvestan lennu andmed andmebaasi, lisades koha info
     public void saveToDB(Flight flight, int id) {
-        logger.info("creating table");
         jdbcClient.sql(
                 "INSERT INTO flights(id, airline_name, departure_airport, destination_airport, arrival_date, flight_date, price) values(:id, :airline, :departureAirport, :destinationAirport, :flightArrivalDate, :flightDate, :price)")
                 .param("id", id)
@@ -221,7 +219,6 @@ public class FlightRepository {
                 currentGroup.add(freeSeats.get(i));
             } else {
                 if (currentGroup.size() >= numSeatsNeeded) {
-                    logger.info("found enough");
                     return currentGroup.subList(0, numSeatsNeeded);
                 }
                 foundGroups.add(currentGroup);
@@ -232,7 +229,6 @@ public class FlightRepository {
         foundGroups.sort((a, b) -> {
             return b.size() - a.size();
         });
-        logger.info("didnt find enough");
         currentGroup.clear();
         int i = 0;
         while (currentGroup.size() < numSeatsNeeded) {
