@@ -17,16 +17,19 @@ public class FlightDataController {
         this.flightRepository = flightRepository;
     }
 
+    // tagastab kõik sihtkohad andmebaasist
     @GetMapping("/destinations")
     List<String> getDestinations() {
         return flightRepository.getDestinations();
     }
 
+    // tagastab kõik lennud andmebaasist
     @GetMapping("/all")
     List<Flight> findAll() {
         return flightRepository.getAllFlights();
     }
 
+    // teeb lennupäringu vastavalt parameetritele ja tagastab vastavad lennud
     @GetMapping("")
     List<Flight> getFlights(@RequestParam(required = false) String flight_date,
             @RequestParam(required = false) Integer min_price,
@@ -39,13 +42,15 @@ public class FlightDataController {
                 destination_airport, time);
     }
 
+    // tagastab kõik broneeritud kohad lennu järgi
     @GetMapping("/takenSeats")
     List<String> getTakenSeats(@RequestParam Integer id) {
         return flightRepository.getTakenSeats(id);
     }
 
+    // tagastab soovitatud vabad kohad
     @GetMapping("/recommendedSeats")
-    List<String> getRecommendedSeats(@RequestParam Integer id,@RequestParam Integer nr) {
+    List<String> getRecommendedSeats(@RequestParam Integer id, @RequestParam Integer nr) {
         return flightRepository.recommendedSeats(id, nr);
     }
 }

@@ -22,6 +22,7 @@ public class JsonDataLoader {
         this.objectMapper = objectMapper;
     }
 
+    // loen JSON faili ja salvestab lennud andmebaasi
     public void readToDB() throws IOException {
         try (InputStream inputStream = getClass().getResourceAsStream("/data/flights.json")) {
             List<Flight> flights = objectMapper.readValue(inputStream, new TypeReference<List<Flight>>() {
@@ -32,9 +33,8 @@ public class JsonDataLoader {
 
     @PostConstruct
     public void init() throws IOException {
-        // iga kord kui leht lahti laheb, laetakse näidisandmed failist h2 local
+        // iga kord kui leht avatakse, laetakse näidisandmed failist h2 local
         // andmebaasi
         readToDB();
     }
-
 }

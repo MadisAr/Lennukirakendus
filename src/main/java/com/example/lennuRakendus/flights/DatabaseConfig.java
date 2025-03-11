@@ -8,7 +8,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 
 @Configuration
 public class DatabaseConfig {
-    
+
     @Bean
     public JdbcClient jdbcClient(DataSource dataSource) {
         return JdbcClient.create(dataSource);

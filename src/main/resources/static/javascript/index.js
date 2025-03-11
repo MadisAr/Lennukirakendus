@@ -1,3 +1,4 @@
+// loob formi valiku asukoha kohta
 function createNewFormEntry(element, timeForm, document) {
   const newOption = document.createElement("option");
   newOption.value = element;
@@ -5,11 +6,13 @@ function createNewFormEntry(element, timeForm, document) {
   timeForm.appendChild(newOption);
 }
 
-function createSeatsScheme(takenSeats) {
-  document.getElementById("seat-selection").classList.remove("hidden")
+// loob istmete skeemi, tähistades võetud ja soovitatud kohad
+function createSeatsScheme(takenSeats, recommendedSeats) {
+  document.getElementById("seat-selection").classList.remove("hidden");
   const seatMap = document.querySelector(".seat-map");
   seatMap.innerHTML = "";
 
+  // luuakse 20 rida, igaühes 6 kohta
   for (let i = 1; i <= 20; i++) {
     const row = document.createElement("div");
     row.className = "d-flex mb-2";
@@ -22,16 +25,26 @@ function createSeatsScheme(takenSeats) {
       seat.textContent = seatName;
       if (takenSeats.includes(seatName)) {
         seat.disabled = true;
-        seat.className = "btn btn-secondary seat mx-1";
+        seat.className = "btn btn-secondary seat mx-1"; // võetud koht
       } else {
-        seat.className = "btn btn-outline-primary seat mx-1";
+        seat.className = "btn btn-outline-primary seat mx-1"; // vaba koht
 
+        // lisab klikimise kuulaja, et muuta koha olek
         seat.addEventListener("click", function () {
-          this.classList.toggle("btn-success");
-          updateSelectedSeats();
+          if (this.classList.contains("btn-success")) {
+            this.classList.remove("btn-success");
+            removeSelectedSeats(this.textContent); // eemaldab valitud koha
+          } else {
+            this.classList.add("btn-success");
+            addSelectedSeats(this.textContent); // lisab valitud koha
+          }
         });
-      }
 
+        // kui koht on soovitatud, tehakse see automaatselt valituks
+        if (recommendedSeats.includes(seatName)) {
+          seat.click();
+        }
+      }
       row.appendChild(seat);
     }
 
@@ -39,17 +52,53 @@ function createSeatsScheme(takenSeats) {
   }
 }
 
-function openSeatPlan(seats, flightId) {
-  fetch(`/api/flights/takenSeats?id=${flightId}`)
-    .then((res) => res.json())
-    .then((res) => {
-      createSeatsScheme(res);
-    })
-    .catch((err) => {
-      console.log(err);
-    });
+// eemaldab valitud koha valitud kohtade loendist
+function removeSelectedSeats(seatNr) {
+  const selectedSeatsInput = document.getElementById("selected-seats");
+  let selectedSeats = selectedSeatsInput.value
+    ? selectedSeatsInput.value.split(",")
+    : [];
+
+  if (selectedSeats.includes(seatNr)) {
+    selectedSeatsInput.value = selectedSeats
+      .filter((val) => val != seatNr)
+      .join(",");
+  }
 }
 
+// lisab valitud koha valitud kohtade loendisse
+// teoriaas saaks siis inputi saata submitimisel post requestina serverile,
+// aga hetkel ma seda funktsionaalsust ei lisanud, sest niikuinii ei tee backend hetkel midagi antud andmetega
+function addSelectedSeats(seatNr) {
+  const selectedSeatsInput = document.getElementById("selected-seats");
+  let selectedSeats = selectedSeatsInput.value
+    ? selectedSeatsInput.value.split(",")
+    : [];
+
+  if (!selectedSeats.includes(seatNr)) {
+    selectedSeats.push(seatNr);
+  }
+
+  selectedSeatsInput.value = selectedSeats.join(",");
+}
+
+// teeb get requesti soovitatud kohtade saamiseks
+async function getRecommendedSeats(flightId, nr) {
+  const res = await fetch(
+    `/api/flights/recommendedSeats?id=${flightId}&nr=${nr}`
+  );
+  const data = await res.json();
+  return data;
+}
+
+// teeb get requesti võetud kohtade saamiseks
+async function getTakenSeats(flightId) {
+  const res = await fetch(`/api/flights/takenSeats?id=${flightId}`);
+  const data = await res.json();
+  return data;
+}
+
+// loob uue lennu kohta tabeli elemendi
 function createNewTableEntry(flight, flightsTableBody) {
   const row = document.createElement("tr");
   const dateInfo = flight.flight_date.split(" ");
@@ -71,15 +120,19 @@ function createNewTableEntry(flight, flightsTableBody) {
     </td>
   `;
 
-  row.querySelector(".buy-button").addEventListener("click", function () {
+  // kuulab osta-nupu klikkimist ja laadib istmete skeemi
+  row.querySelector(".buy-button").addEventListener("click", async function () {
     const seats = row.querySelector(".seat-count").value;
     const flightId = this.value;
-    openSeatPlan(seats, flightId);
+    const taken = await getTakenSeats(flightId);
+    const recommendedSeats = await getRecommendedSeats(flightId, seats);
+    createSeatsScheme(taken, recommendedSeats);
   });
 
   flightsTableBody.appendChild(row);
 }
 
+// käivitatakse lehe laadimisel, et saada sihtkohad
 document.addEventListener("DOMContentLoaded", function () {
   const timeForm = document.getElementById("destination");
   const flightsForm = document.getElementById("flight-filter-form");
@@ -96,6 +149,7 @@ document.addEventListener("DOMContentLoaded", function () {
     })
     .catch((err) => console.log(err));
 
+  // kuulab formi esitamist ja teeb lennuotsingu
   flightsForm.addEventListener("submit", function (event) {
     event.preventDefault();
     flightsTableBody.innerHTML = "";

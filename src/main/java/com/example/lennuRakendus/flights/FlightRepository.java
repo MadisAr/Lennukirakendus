@@ -1,6 +1,7 @@
 package com.example.lennuRakendus.flights;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -18,6 +19,9 @@ public class FlightRepository {
         this.jdbcClient = jdbcClient;
     }
 
+    // Arvutan lennuki kohtade võtmisvõimalused, et luua juhuslikult täidetud
+    // kohtade loend
+    // Lennukis on 120 kohta, iga koha jaoks on määratud tõenäosus
     public static Boolean[] randomizeSeats() {
         // arvestan hetkel, et lennukis on 20 rida, igas reas 6 kohta
         // listis on true koik kohad mis on voetud
@@ -36,6 +40,7 @@ public class FlightRepository {
         return takenSeats;
     }
 
+    // Salvestan lennuki kohad andmebaasi, lisades iga koha täidetuse staatuse
     public void saveSeatsToDB(Flight flight, int id) {
         logger.info("saving seats");
         Boolean[] takenSeats = randomizeSeats();
@@ -58,8 +63,8 @@ public class FlightRepository {
         }
     }
 
+    // Salvestan lennu andmed andmebaasi, lisades koha info
     public void saveToDB(Flight flight, int id) {
-        // kasutan h2 andmebaasi, et simuleerida andmebaasiga tööd
         logger.info("creating table");
         jdbcClient.sql(
                 "INSERT INTO flights(id, airline_name, departure_airport, destination_airport, arrival_date, flight_date, price) values(:id, :airline, :departureAirport, :destinationAirport, :flightArrivalDate, :flightDate, :price)")
@@ -74,6 +79,8 @@ public class FlightRepository {
         saveSeatsToDB(flight, id);
     }
 
+    // Loob kõikide lendude jaoks andmebaasi vajalikud tabelid ja salvestab kõik
+    // lennud
     public void saveAll(List<Flight> flights) {
         int id = 1;
         jdbcClient.sql(
@@ -87,12 +94,14 @@ public class FlightRepository {
         }
     }
 
+    // Tagastan kõik saadavad lennujaamad sihtkohtadeks
     public List<String> getDestinations() {
         return jdbcClient.sql("select destination_airport from flights;")
                 .query(String.class)
                 .list();
     }
 
+    // Tagastan kõik lennud andmebaasist
     public List<Flight> getAllFlights() {
         return jdbcClient.sql("select * from flights")
                 .query(Flight.class)
@@ -104,6 +113,8 @@ public class FlightRepository {
     List<Flight> getFlights(String flightDate, Integer minPrice, Integer maxPrice, String airlineName,
             String departureAirport, String destinationAirport, String time) {
 
+        // teen stringbuilderi, millele lisatakse jarjest sql paringu vastavaid osi kui
+        // vaja
         StringBuilder sql = new StringBuilder("SELECT * FROM flights WHERE 1=1");
         List<Object> params = new ArrayList<>();
 
@@ -170,58 +181,64 @@ public class FlightRepository {
                 .list();
     }
 
+    // Tagastab kõik võetud kohad vastavalt lennu ID-le
     List<String> getTakenSeats(Integer id) {
         return jdbcClient.sql("SELECT seat_id from seats where flight_id = ? and is_taken;")
                 .params(id)
                 .query(String.class)
                 .list();
     }
-    // teen koha tähisest char numbrid ja vaatan kui palju kahe koha numbrid
-    // erinevad
-    boolean areSeatsTogether(String seatA, String seatB) {
-        int difference = Math.abs((seatA.charAt(0) + seatA.charAt(1)) - (seatB.charAt(0) + seatB.charAt(1)));
 
-        if (seatA.charAt(0) == seatB.charAt(0) && difference < 2)
-            return true;
+    // Vaatan, kas kaks kohta on kõrvuti. Võrdlen numbri ja tähe järgi
+    static boolean areSeatsTogether(String seatA, String seatB) {
+        String letterA = seatA.replaceAll("\\d", "");
+        int numberA = Integer.parseInt(seatA.replaceAll("[A-Z]", ""));
 
-        return false;
+        String letterB = seatB.replaceAll("\\d", "");
+        int numberB = Integer.parseInt(seatB.replaceAll("[A-Z]", ""));
+
+        return numberA == numberB && Math.abs(letterA.charAt(0) - letterB.charAt(0)) < 2;
     }
 
-    List<String> recommendedSeats(Integer id, Integer nr) {
-        List<String> freeSeats = jdbcClient.sql("SELECT seat_id from seats where flight_id = ? and not is_taken ORDER BY seat_id;")
-                .params(id)
+    // Soovitan kohti vastavalt lennu ID-le ja vajaliku kohtade arvule
+    List<String> recommendedSeats(Integer flightId, Integer numSeatsNeeded) {
+        List<String> freeSeats = jdbcClient
+                .sql("SELECT seat_id FROM seats WHERE flight_id = ? AND NOT is_taken;")
+                .params(flightId)
                 .query(String.class)
                 .list();
 
-        List<List<String>> consecutiveSeats = new ArrayList<>();
-        List<String> currentConsecutiveSeats = new ArrayList<>();
-        int count = 0;
-        for (int i = 0; i + 1 < freeSeats.size(); i++) {
-            if (areSeatsTogether(freeSeats.get(i), freeSeats.get(i + 1))) {
-                count++;
-                currentConsecutiveSeats.add(freeSeats.get(i));
-                currentConsecutiveSeats.add(freeSeats.get(i + 1));
-            } else if (count > 0) {
-                if (count >= nr) {
-                    return new ArrayList<String>(currentConsecutiveSeats.subList(0, nr));
+        if (freeSeats.size() < numSeatsNeeded) {
+            return Collections.emptyList();
+        }
+        List<String> currentGroup = new ArrayList<>();
+        List<List<String>> foundGroups = new ArrayList<>();
+
+        for (int i = 0; i < freeSeats.size(); i++) {
+            if (currentGroup.isEmpty()) {
+                currentGroup.add(freeSeats.get(i));
+            } else if (areSeatsTogether(currentGroup.get(currentGroup.size() - 1), freeSeats.get(i))) {
+                currentGroup.add(freeSeats.get(i));
+            } else {
+                if (currentGroup.size() >= numSeatsNeeded) {
+                    logger.info("found enough");
+                    return currentGroup.subList(0, numSeatsNeeded);
                 }
-                count = 0;
-                consecutiveSeats.add(currentConsecutiveSeats);
-                currentConsecutiveSeats = new ArrayList<>();
-                i++;
+                foundGroups.add(currentGroup);
+                currentGroup = new ArrayList<>();
+                currentGroup.add(freeSeats.get(i));
             }
         }
-        consecutiveSeats.sort((listA, listB) -> {
-            return listA.size() - listB.size();
+        foundGroups.sort((a, b) -> {
+            return b.size() - a.size();
         });
-
-        List<String> returnList = new ArrayList<>();
+        logger.info("didnt find enough");
+        currentGroup.clear();
         int i = 0;
-        while (returnList.size() < nr) {
-            returnList.addAll(consecutiveSeats.get(i));
+        while (currentGroup.size() < numSeatsNeeded) {
+            currentGroup.addAll(foundGroups.get(i));
             i++;
         }
-
-        return new ArrayList<String>(currentConsecutiveSeats.subList(0, nr));
+        return currentGroup.subList(0, numSeatsNeeded);
     }
 }
