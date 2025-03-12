@@ -65,7 +65,7 @@ public class FlightRepository {
     // Salvestan lennu andmed andmebaasi, lisades koha info
     public void saveToDB(Flight flight, int id) {
         jdbcClient.sql(
-                "INSERT INTO flights(id, airline_name, departure_airport, destination_airport, arrival_date, flight_date, price) values(:id, :airline, :departureAirport, :destinationAirport, :flightArrivalDate, :flightDate, :price)")
+                "INSERT INTO flights(id, airline_name, departure_airport, destination_airport, arrival_date, flight_date, price) values(:id, :airline, :departureAirport, :destinationAirport, cast(:flightArrivalDate as timestamp), cast(:flightDate as timestamp), :price)")
                 .param("id", id)
                 .param("airline", flight.airline_name())
                 .param("departureAirport", flight.departure_airport())
@@ -82,14 +82,21 @@ public class FlightRepository {
     public void saveAll(List<Flight> flights) {
         int id = 1;
         jdbcClient.sql(
-                "CREATE TABLE flights (id INT PRIMARY KEY, airline_name VARCHAR(255), departure_airport VARCHAR(255), destination_airport VARCHAR(255), arrival_date DATETIME, flight_date DATETIME, price integer)")
+                "CREATE TABLE IF NOT EXISTS flights (id INT PRIMARY KEY, airline_name VARCHAR(255), departure_airport VARCHAR(255), destination_airport VARCHAR(255), arrival_date TIMESTAMP, flight_date TIMESTAMP, price integer)")
                 .update();
 
         // teen eraldi tabeli kohtade hoimdiseks
-        jdbcClient.sql("CREATE TABLE seats (flight_id INT, seat_id VARCHAR(255), is_taken BOOLEAN)").update();
-        for (Flight flight : flights) {
-            saveToDB(flight, id++);
+        jdbcClient.sql("CREATE TABLE IF NOT EXISTS seats (flight_id INT, seat_id VARCHAR(255), is_taken BOOLEAN)").update();
+
+        List<String> isFlightEmpty = jdbcClient.sql("SELECT COUNT(*) FROM flights").query(String.class).list();
+        if (isFlightEmpty.get(0).equals("0")) {
+            logger.info("table empty");
+
+            for (Flight flight : flights) {
+                saveToDB(flight, id++);
+            }
         }
+
     }
 
     // Tagastan kõik saadavad lennujaamad sihtkohtadeks
