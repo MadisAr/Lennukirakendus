@@ -1,0 +1,28 @@
+services:
+  db:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: flightDB
+    ports:
+      - "5432:5432"
+    networks:
+      - flight-network
+
+  app:
+    build: .
+    depends_on:
+      - db
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/flightDB
+      SPRING_DATASOURCE_USERNAME: user
+      SPRING_DATASOURCE_PASSWORD: password
+    ports:
+      - "8080:8080"
+    networks:
+      - flight-network
+
+networks:
+  flight-network:
+    driver: bridge
