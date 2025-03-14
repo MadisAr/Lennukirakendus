@@ -2,7 +2,11 @@ package com.example.lennuRakendus.flights;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -75,8 +79,9 @@ public class FlightRepository {
         saveSeatsToDB(flight, id);
     }
 
-    // Loob kõikide lendude jaoks andmebaasi vajalikud tabelid 
-    // ja salvestab kõik lennud, kui andmebaas on tühi (ehk dockeri esmakordsel jooksutamisel)
+    // Loob kõikide lendude jaoks andmebaasi vajalikud tabelid
+    // ja salvestab kõik lennud, kui andmebaas on tühi (ehk dockeri esmakordsel
+    // jooksutamisel)
     public void saveAll(List<Flight> flights) {
         int id = 1;
         jdbcClient.sql(
@@ -193,19 +198,62 @@ public class FlightRepository {
                 .list();
     }
 
+    class Seat {
+        String letter;
+        int number;
+
+        Seat(String seat) {
+            this.letter = seat.replaceAll("\\d", "");
+            this.number = Integer.parseInt(seat.replaceAll("[A-Z]", ""));
+        }
+    }
+
     // Vaatan, kas kaks kohta on kõrvuti. Võrdlen numbri ja tähe järgi
-    static boolean areSeatsTogether(String seatA, String seatB) {
-        String letterA = seatA.replaceAll("\\d", "");
-        int numberA = Integer.parseInt(seatA.replaceAll("[A-Z]", ""));
+    boolean areSeatsTogether(String seatA, String seatB) {
+        Seat a = new Seat(seatA);
+        Seat b = new Seat(seatB);
 
-        String letterB = seatB.replaceAll("\\d", "");
-        int numberB = Integer.parseInt(seatB.replaceAll("[A-Z]", ""));
+        return a.number == b.number && Math.abs(a.letter.charAt(0) - b.letter.charAt(0)) < 2 &&
+                !(a.letter.equals("C") && b.letter.equals("D")) &&
+                !(a.letter.equals("D") && b.letter.equals("C"));
+    }
 
-        return numberA == numberB && Math.abs(letterA.charAt(0) - letterB.charAt(0)) < 2;
+    // annab leitud kohtadele kuni 12 punkti et hinnata kui hästi need kasutajale
+    // sobivad, panin kõige suurema kaalu kohtade kokkupaigutamisele, sest see
+    // tundus isiklikult kõige olulisem
+    private Integer seatsRating(List<String> foundSeats, Integer numSeatsNeeded, Boolean windowSeat, Boolean legRoom,
+            Boolean aisle) {
+        // 0-6 punkti kas kohti on piisavalt kasutaja inimestele
+        Integer rating = Math.round((foundSeats.size() / numSeatsNeeded) * 3) * foundSeats.size();
+
+        for (int i = 0; i < foundSeats.size(); i++) {
+            Seat a = new Seat(foundSeats.get(i));
+
+            // kui rida on esimene ehk rohkema jalaruumiga ja seda soovitakse lisan
+            // reitingusse punktid ja maaran legroom valeks et boonust ei saaks mitu korda
+            // saada
+            if (legRoom && a.number == 1) {
+                legRoom = false;
+                rating += 2;
+            }
+
+            if (windowSeat && (a.letter.equals("A") || a.letter.equals("F"))) {
+                windowSeat = false;
+                rating += 2;
+            }
+
+            if (aisle && (a.letter.equals("C") || a.letter.equals("D"))) {
+                aisle = false;
+                rating += 2;
+            }
+        }
+
+        return rating;
     }
 
     // Soovitan kohti vastavalt lennu ID-le ja vajaliku kohtade arvule
-    List<String> recommendedSeats(Integer flightId, Integer numSeatsNeeded, Boolean windowSeat, Boolean legRoom, Boolean aisle) {
+    List<String> recommendedSeats(Integer flightId, Integer numSeatsNeeded, Boolean windowSeat, Boolean legRoom,
+            Boolean aisle) {
         List<String> freeSeats = jdbcClient
                 .sql("SELECT seat_id FROM seats WHERE flight_id = ? AND NOT is_taken;")
                 .params(flightId)
@@ -215,30 +263,46 @@ public class FlightRepository {
         if (freeSeats.size() < numSeatsNeeded) {
             return Collections.emptyList();
         }
-        List<String> currentGroup = new ArrayList<>();
-        List<List<String>> foundGroups = new ArrayList<>();
 
-        for (int i = 0; i < freeSeats.size(); i++) {
-            if (currentGroup.isEmpty()) {
-                currentGroup.add(freeSeats.get(i));
-            } else if (areSeatsTogether(currentGroup.get(currentGroup.size() - 1), freeSeats.get(i))) {
-                currentGroup.add(freeSeats.get(i));
-            } else {
-                if (currentGroup.size() >= numSeatsNeeded) {
-                    return currentGroup.subList(0, numSeatsNeeded);
-                }
-                foundGroups.add(currentGroup);
+        // teen mapi kus keyd on listid kohtadest ja vaartused on reiting sellele
+        // listile skaalal 1-10
+        Map<List<String>, Integer> seatRatings = new HashMap<>();
+
+        List<String> currentGroup = new ArrayList<>();
+        currentGroup.add(freeSeats.get(0));
+        for (int i = 1; i < freeSeats.size(); i++) {
+            // kui järgmine koht ei ole enam kõrvuti lisan grupi ja teen uue grupi
+            if (!areSeatsTogether(currentGroup.getLast(), freeSeats.get(i))) {
+                Integer rating = seatsRating(currentGroup, numSeatsNeeded, windowSeat, legRoom, aisle);
+                seatRatings.put(currentGroup, rating);
                 currentGroup = new ArrayList<>();
-                currentGroup.add(freeSeats.get(i));
             }
+
+            // kui grupi suurus läheb suuremaks kui vaja lisan grupi ja teen uue
+            if (currentGroup.size() + 1 > numSeatsNeeded) {
+                Integer rating = seatsRating(currentGroup, numSeatsNeeded, windowSeat, legRoom, aisle);
+                seatRatings.put(currentGroup, rating);
+                currentGroup = new ArrayList<>();
+            }
+            currentGroup.add(freeSeats.get(i));
         }
-        foundGroups.sort((a, b) -> {
-            return b.size() - a.size();
-        });
+
+        // kui list pole tyhi anname ka viimasele setile hinnangu
+        if (!currentGroup.isEmpty()) {
+            Integer rating = seatsRating(currentGroup, numSeatsNeeded, windowSeat, legRoom, aisle);
+            seatRatings.put(currentGroup, rating);
+        }
+
+        // teen uue listi kohtade gruppidest, mis on sorteeritud nende reitingute järgi
+        List<List<String>> sortedSeatLists = seatRatings.entrySet().stream()
+                .sorted(Map.Entry.comparingByValue((Comparator.reverseOrder()))).map(Map.Entry::getKey)
+                .collect(Collectors.toList());
+
+        // lisan parimaid gruppe kokku kuni saan piisavalt suure grupi
         currentGroup.clear();
         int i = 0;
         while (currentGroup.size() < numSeatsNeeded) {
-            currentGroup.addAll(foundGroups.get(i));
+            currentGroup.addAll(sortedSeatLists.get(i));
             i++;
         }
         return currentGroup.subList(0, numSeatsNeeded);

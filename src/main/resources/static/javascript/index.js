@@ -89,6 +89,7 @@ function addSelectedSeats(seatNr) {
 
 // teeb get requesti soovitatud kohtade saamiseks
 async function getRecommendedSeats(flightId, nr, windowSeat, legRoom, aisle) {
+  console.log(`/api/flights/recommendedSeats?id=${flightId}&nr=${nr}&windowSeat=${windowSeat}&legRoom=${legRoom}&aisle=${aisle}`)
   const res = await fetch(
     `/api/flights/recommendedSeats?id=${flightId}&nr=${nr}&windowSeat=${windowSeat}&legRoom=${legRoom}&aisle=${aisle}`
   );
@@ -139,7 +140,7 @@ function createNewTableEntry(flight, flightsTableBody) {
     </td>
     <td>
       <label>
-        <input type="checkbox" id="aisle-preference">
+        <input type="checkbox" id="aisle-seat-preference">
         Eelistan vahekäigu juurde
       </label>
     </td>
@@ -154,6 +155,9 @@ function createNewTableEntry(flight, flightsTableBody) {
     </td>
   `;
 
+  flightsTableBody.appendChild(row);
+  flightsTableBody.appendChild(row2);
+
   // kuulab osta-nupu klikkimist ja laadib istmete skeemi
   row2
     .querySelector(".buy-button")
@@ -162,6 +166,7 @@ function createNewTableEntry(flight, flightsTableBody) {
       const windowSeat = row2.querySelector("#window-seat-preference").checked;
       const legRoom = row2.querySelector("#leg-room-preference").checked;
       const aisle = row2.querySelector("#aisle-seat-preference").checked;
+
       if (seatCount < 1 || isNaN(seatCount)) {
         seatCount = 1;
       } else if (seatCount > 10) {
@@ -173,9 +178,7 @@ function createNewTableEntry(flight, flightsTableBody) {
       const recommendedSeats = await getRecommendedSeats(
         flightId,
         seatCount,
-        windowSeat,
-        legRoom,
-        aisle
+        windowSeat, legRoom, aisle
       );
       createSeatsScheme(taken, recommendedSeats);
     });
@@ -188,8 +191,6 @@ function createNewTableEntry(flight, flightsTableBody) {
         : row2.classList.add("hidden");
     });
 
-  flightsTableBody.appendChild(row);
-  flightsTableBody.appendChild(row2);
 }
 
 // käivitatakse lehe laadimisel, et saada sihtkohad
