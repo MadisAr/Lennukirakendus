@@ -46,6 +46,11 @@ function createSeatsScheme(takenSeats, recommendedSeats) {
         }
       }
       row.appendChild(seat);
+      if (j == 3) {
+        const gap = document.createElement("div");
+        gap.style.width = "20px";
+        row.appendChild(gap);
+      }
     }
 
     seatMap.appendChild(row);
@@ -83,9 +88,9 @@ function addSelectedSeats(seatNr) {
 }
 
 // teeb get requesti soovitatud kohtade saamiseks
-async function getRecommendedSeats(flightId, nr) {
+async function getRecommendedSeats(flightId, nr, windowSeat, legRoom, aisle) {
   const res = await fetch(
-    `/api/flights/recommendedSeats?id=${flightId}&nr=${nr}`
+    `/api/flights/recommendedSeats?id=${flightId}&nr=${nr}&windowSeat=${windowSeat}&legRoom=${legRoom}&aisle=${aisle}`
   );
   const data = await res.json();
   return data;
@@ -100,10 +105,10 @@ async function getTakenSeats(flightId) {
 
 // loob uue lennu kohta tabeli elemendi
 function createNewTableEntry(flight, flightsTableBody) {
-  const row = document.createElement("tr");
   const dateInfo = flight.flight_date.split(" ");
   const arrivalDateInfo = flight.arrival_date.split(" ");
 
+  const row = document.createElement("tr");
   row.innerHTML = `
     <td>${dateInfo[0]}</td>
     <td>${dateInfo[1]}</td>
@@ -113,23 +118,78 @@ function createNewTableEntry(flight, flightsTableBody) {
     <td>${flight.destination_airport}</td>
     <td>${flight.price}</td>
     <td>
-      <input type="number" min="1" max="10" value="1" class="seat-count">
+    <button class="displaySeatOptions">Kohtade valikud</button>
+    </td>
+  `;
+
+  const row2 = document.createElement("tr");
+  row2.classList.add("hidden");
+  row2.innerHTML = `
+    <td>
+      <label>
+        <input type="checkbox" id="leg-room-preference">
+        Eelistan rohkem jalaruumi
+      </label>
     </td>
     <td>
-      <button class="btn btn-success buy-button" value="${flight.id}">Buy</button>
+      <label>
+        <input type="checkbox" id="window-seat-preference">
+        Eelistan aknakohta
+      </label>
+    </td>
+    <td>
+      <label>
+        <input type="checkbox" id="aisle-preference">
+        Eelistan vahekäigu juurde
+      </label>
+    </td>
+    <td>
+    <label>
+      kohtade arv:
+      <input type="number" min="1" max="10" value="1" class="seat-count">
+    </label>
+    </td>
+    <td>
+      <button class="btn btn-success buy-button" value="${flight.id}">Vaata kohti</button>
     </td>
   `;
 
   // kuulab osta-nupu klikkimist ja laadib istmete skeemi
-  row.querySelector(".buy-button").addEventListener("click", async function () {
-    const seats = row.querySelector(".seat-count").value;
-    const flightId = this.value;
-    const taken = await getTakenSeats(flightId);
-    const recommendedSeats = await getRecommendedSeats(flightId, seats);
-    createSeatsScheme(taken, recommendedSeats);
-  });
+  row2
+    .querySelector(".buy-button")
+    .addEventListener("click", async function () {
+      const seatCount = row2.querySelector(".seat-count").value;
+      const windowSeat = row2.querySelector("#window-seat-preference").checked;
+      const legRoom = row2.querySelector("#leg-room-preference").checked;
+      const aisle = row2.querySelector("#aisle-seat-preference").checked;
+      if (seatCount < 1 || isNaN(seatCount)) {
+        seatCount = 1;
+      } else if (seatCount > 10) {
+        seatCount = 10;
+      }
+
+      const flightId = this.value;
+      const taken = await getTakenSeats(flightId);
+      const recommendedSeats = await getRecommendedSeats(
+        flightId,
+        seatCount,
+        windowSeat,
+        legRoom,
+        aisle
+      );
+      createSeatsScheme(taken, recommendedSeats);
+    });
+
+  row
+    .querySelector(".displaySeatOptions")
+    .addEventListener("click", function () {
+      row2.classList.contains("hidden")
+        ? row2.classList.remove("hidden")
+        : row2.classList.add("hidden");
+    });
 
   flightsTableBody.appendChild(row);
+  flightsTableBody.appendChild(row2);
 }
 
 // käivitatakse lehe laadimisel, et saada sihtkohad

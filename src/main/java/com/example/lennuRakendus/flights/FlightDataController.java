@@ -47,10 +47,10 @@ public class FlightDataController {
     List<String> getTakenSeats(@RequestParam Integer id) {
         return flightRepository.getTakenSeats(id);
     }
-
+    
     // tagastab soovitatud vabad kohad
     @GetMapping("/recommendedSeats")
-    List<String> getRecommendedSeats(@RequestParam Integer id, @RequestParam Integer nr) {
-        return flightRepository.recommendedSeats(id, nr);
+    List<String> getRecommendedSeats(@RequestParam Integer id, @RequestParam Integer nr, @RequestParam Boolean windowSeat, @RequestParam Boolean legRoom, @RequestParam Boolean aisle) {
+        return flightRepository.recommendedSeats(id, nr, windowSeat, legRoom, aisle);
     }
 }

@@ -23,8 +23,6 @@ public class FlightRepository {
     // kohtade loend
     // Lennukis on 120 kohta, iga koha jaoks on määratud tõenäosus
     public static Boolean[] randomizeSeats() {
-        // arvestan hetkel, et lennukis on 20 rida, igas reas 6 kohta
-        // listis on true koik kohad mis on voetud
         Boolean[] takenSeats = new Boolean[120];
 
         // tõenaosus, mida kasutatakse, et arvutada, kas koht on võetud või mitte
@@ -77,8 +75,8 @@ public class FlightRepository {
         saveSeatsToDB(flight, id);
     }
 
-    // Loob kõikide lendude jaoks andmebaasi vajalikud tabelid ja salvestab kõik
-    // lennud
+    // Loob kõikide lendude jaoks andmebaasi vajalikud tabelid 
+    // ja salvestab kõik lennud, kui andmebaas on tühi (ehk dockeri esmakordsel jooksutamisel)
     public void saveAll(List<Flight> flights) {
         int id = 1;
         jdbcClient.sql(
@@ -86,7 +84,8 @@ public class FlightRepository {
                 .update();
 
         // teen eraldi tabeli kohtade hoimdiseks
-        jdbcClient.sql("CREATE TABLE IF NOT EXISTS seats (flight_id INT, seat_id VARCHAR(255), is_taken BOOLEAN)").update();
+        jdbcClient.sql("CREATE TABLE IF NOT EXISTS seats (flight_id INT, seat_id VARCHAR(255), is_taken BOOLEAN)")
+                .update();
 
         List<String> isFlightEmpty = jdbcClient.sql("SELECT COUNT(*) FROM flights").query(String.class).list();
         if (isFlightEmpty.get(0).equals("0")) {
@@ -206,7 +205,7 @@ public class FlightRepository {
     }
 
     // Soovitan kohti vastavalt lennu ID-le ja vajaliku kohtade arvule
-    List<String> recommendedSeats(Integer flightId, Integer numSeatsNeeded) {
+    List<String> recommendedSeats(Integer flightId, Integer numSeatsNeeded, Boolean windowSeat, Boolean legRoom, Boolean aisle) {
         List<String> freeSeats = jdbcClient
                 .sql("SELECT seat_id FROM seats WHERE flight_id = ? AND NOT is_taken;")
                 .params(flightId)

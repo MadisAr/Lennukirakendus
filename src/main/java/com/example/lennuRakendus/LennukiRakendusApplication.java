@@ -10,3 +10,4 @@ public class LennukiRakendusApplication {
         SpringApplication.run(LennukiRakendusApplication.class, args);
     }
 }
+ 
