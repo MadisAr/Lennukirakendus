@@ -251,7 +251,7 @@ public class FlightRepository {
         return rating;
     }
 
-    // Soovitan kohti vastavalt lennu ID-le ja vajaliku kohtade arvule
+    // Soovitan kohti vastavalt lennu ID-le ja vajalikule kohtade arvule
     List<String> recommendedSeats(Integer flightId, Integer numSeatsNeeded, Boolean windowSeat, Boolean legRoom,
             Boolean aisle) {
         List<String> freeSeats = jdbcClient
