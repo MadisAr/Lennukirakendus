@@ -230,7 +230,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (destination) params.append("destination_airport", destination);
 
     const queryString = params.toString();
-    const url = `/api/flights${queryString ? "?" + queryString : "/all"}`;
+    const url = `/api/flights${queryString ? "?" + queryString : ""}`;
     fetch(url)
       .then((res) => {
         return res.json();

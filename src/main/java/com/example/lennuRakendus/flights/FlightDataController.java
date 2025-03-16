@@ -2,6 +2,8 @@ package com.example.lennuRakendus.flights;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -10,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/flights")
 public class FlightDataController {
-
+    private static final Logger logger = LoggerFactory.getLogger(FlightDataController.class);
     private final FlightRepository flightRepository;
 
     public FlightDataController(FlightRepository flightRepository) {
@@ -29,7 +31,7 @@ public class FlightDataController {
         return flightRepository.getAllFlights();
     }
 
-    // teeb lennupäringu vastavalt parameetritele ja tagastab vastavad lennud
+    // teeb lennupäringu vastavalt parameetritele ja tagastab vastavad lennuds
     @GetMapping("")
     List<Flight> getFlights(@RequestParam(required = false) String flight_date,
             @RequestParam(required = false) Integer min_price,
@@ -47,10 +49,11 @@ public class FlightDataController {
     List<String> getTakenSeats(@RequestParam Integer id) {
         return flightRepository.getTakenSeats(id);
     }
-    
+
     // tagastab soovitatud vabad kohad
     @GetMapping("/recommendedSeats")
-    List<String> getRecommendedSeats(@RequestParam Integer id, @RequestParam Integer nr, @RequestParam Boolean windowSeat, @RequestParam Boolean legRoom, @RequestParam Boolean aisle) {
+    List<String> getRecommendedSeats(@RequestParam Integer id, @RequestParam Integer nr,
+            @RequestParam Boolean windowSeat, @RequestParam Boolean legRoom, @RequestParam Boolean aisle) {
         return flightRepository.recommendedSeats(id, nr, windowSeat, legRoom, aisle);
     }
 }

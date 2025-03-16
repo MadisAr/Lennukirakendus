@@ -1,5 +1,7 @@
 package com.example.lennuRakendus.flights;
 
+import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -13,14 +15,17 @@ import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
+import jakarta.annotation.PostConstruct;
+
 @Repository
 public class FlightRepository {
-
+    private final LiveDataLoader liveDataLoader;
     private final JdbcClient jdbcClient;
     private static final Logger logger = LoggerFactory.getLogger(FlightRepository.class);
 
-    public FlightRepository(JdbcClient jdbcClient) {
+    public FlightRepository(JdbcClient jdbcClient, com.example.lennuRakendus.flights.LiveDataLoader liveDataLoader) {
         this.jdbcClient = jdbcClient;
+        this.liveDataLoader = liveDataLoader;
     }
 
     // Arvutan lennuki kohtade võtmisvõimalused, et luua juhuslikult täidetud
@@ -45,67 +50,84 @@ public class FlightRepository {
     // Salvestan lennuki kohad andmebaasi, lisades iga koha täidetuse staatuse
     public void saveSeatsToDB(Flight flight, int id) {
         Boolean[] takenSeats = randomizeSeats();
-        int i = 1;
-        int j = 0;
-        while (i - 1 < 20 && j < 6) {
-            String seatId = i + String.valueOf((char) ('A' + j));
 
-            jdbcClient.sql("INSERT INTO seats (flight_id, seat_id, is_taken) VALUES(:flight_id, :seat_id, :is_taken)")
-                    .param("flight_id", id)
-                    .param("seat_id", seatId)
-                    .param("is_taken", takenSeats[(i - 1) * 6 + j])
-                    .update();
+        StringBuilder batchQuery = new StringBuilder(
+                "INSERT INTO seats (flight_id, seat_id, is_taken) VALUES ");
 
-            if (j == 5) {
-                j = 0;
-                i++;
-            } else
-                j++;
+        List<Object> params = new ArrayList<>();
+
+        for (int i = 1; i <= 20; i++) {
+            for (int j = 0; j < 6; j++) {
+                if (!params.isEmpty()) {
+                    batchQuery.append(", ");
+                }
+                batchQuery.append("(?, ?, ?)");
+
+                String seatId = i + String.valueOf((char) ('A' + j));
+                params.add(id);
+                params.add(seatId);
+                params.add(takenSeats[(i - 1) * 6 + j]);
+            }
         }
-    }
 
-    // Salvestan lennu andmed andmebaasi, lisades koha info
-    public void saveToDB(Flight flight, int id) {
-        jdbcClient.sql(
-                "INSERT INTO flights(id, airline_name, departure_airport, destination_airport, arrival_date, flight_date, price) values(:id, :airline, :departureAirport, :destinationAirport, cast(:flightArrivalDate as timestamp), cast(:flightDate as timestamp), :price)")
-                .param("id", id)
-                .param("airline", flight.airline_name())
-                .param("departureAirport", flight.departure_airport())
-                .param("destinationAirport", flight.destination_airport())
-                .param("flightArrivalDate", flight.arrival_date())
-                .param("flightDate", flight.flight_date())
-                .param("price", flight.price())
+        jdbcClient.sql(batchQuery.toString())
+                .params(params.toArray())
                 .update();
-        saveSeatsToDB(flight, id);
     }
 
     // Loob kõikide lendude jaoks andmebaasi vajalikud tabelid
     // ja salvestab kõik lennud, kui andmebaas on tühi (ehk dockeri esmakordsel
     // jooksutamisel)
-    public void saveAll(List<Flight> flights) {
-        int id = 1;
+    @PostConstruct
+    public void saveAll() throws IOException, URISyntaxException {
+        // jdbcClient.sql("TRUNCATE TABLE flights;").update();
+        // jdbcClient.sql("TRUNCATE TABLE seats;").update();
+
         jdbcClient.sql(
                 "CREATE TABLE IF NOT EXISTS flights (id INT PRIMARY KEY, airline_name VARCHAR(255), departure_airport VARCHAR(255), destination_airport VARCHAR(255), arrival_date TIMESTAMP, flight_date TIMESTAMP, price integer)")
                 .update();
 
-        // teen eraldi tabeli kohtade hoimdiseks
         jdbcClient.sql("CREATE TABLE IF NOT EXISTS seats (flight_id INT, seat_id VARCHAR(255), is_taken BOOLEAN)")
                 .update();
 
         List<String> isFlightEmpty = jdbcClient.sql("SELECT COUNT(*) FROM flights").query(String.class).list();
         if (isFlightEmpty.get(0).equals("0")) {
             logger.info("table empty");
+            List<Flight> flights = liveDataLoader.readFlights();
+
+            int id = 1;
+
+            StringBuilder flightBatchQuery = new StringBuilder(
+                    "INSERT INTO flights(id, airline_name, departure_airport, destination_airport, arrival_date, flight_date, price) VALUES ");
+            List<Object> flightParams = new ArrayList<>();
 
             for (Flight flight : flights) {
-                saveToDB(flight, id++);
-            }
-        }
+                if (!flightParams.isEmpty()) {
+                    flightBatchQuery.append(", ");
+                }
+                flightBatchQuery.append("(?, ?, ?, ?, cast(? as timestamp), cast(? as timestamp), ?)");
 
+                flightParams.add(id);
+                flightParams.add(flight.airline_name());
+                flightParams.add(flight.departure_airport());
+                flightParams.add(flight.destination_airport());
+                flightParams.add(flight.arrival_date());
+                flightParams.add(flight.flight_date());
+                flightParams.add(flight.price());
+
+                saveSeatsToDB(flight, id);
+                id++;
+            }
+
+            jdbcClient.sql(flightBatchQuery.toString())
+                    .params(flightParams.toArray())
+                    .update();
+        }
     }
 
     // Tagastan kõik saadavad lennujaamad sihtkohtadeks
     public List<String> getDestinations() {
-        return jdbcClient.sql("select destination_airport from flights;")
+        return jdbcClient.sql("select distinct destination_airport from flights order by destination_airport;")
                 .query(String.class)
                 .list();
     }
@@ -124,11 +146,11 @@ public class FlightRepository {
 
         // teen stringbuilderi, millele lisatakse jarjest sql paringu vastavaid osi kui
         // vaja
-        StringBuilder sql = new StringBuilder("SELECT * FROM flights WHERE 1=1");
+        StringBuilder sql = new StringBuilder("SELECT * FROM flights WHERE flight_date > CURRENT_TIMESTAMP");
         List<Object> params = new ArrayList<>();
 
         if (flightDate != null) {
-            sql.append(" AND CAST(flight_date AS date) = ?");
+            sql.append(" AND CAST(flight_date AS date) = CAST(? AS date)");
             params.add(flightDate);
         }
 
@@ -159,7 +181,7 @@ public class FlightRepository {
                 }
             }
 
-            sql.append(" AND cast(flight_date as time) BETWEEN ? AND ? ");
+            sql.append(" AND cast(flight_date as time) BETWEEN cast(? as time) AND cast(? as time)");
             params.add(minTime);
             params.add(maxTime);
         }
@@ -183,6 +205,8 @@ public class FlightRepository {
             sql.append(" AND destination_airport = ?");
             params.add(destinationAirport);
         }
+
+        sql.append(" ORDER BY flight_date ASC");
 
         return jdbcClient.sql(sql.toString())
                 .params(params.toArray())
