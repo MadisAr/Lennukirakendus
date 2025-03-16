@@ -80,8 +80,8 @@ public class FlightRepository {
     // jooksutamisel)
     @PostConstruct
     public void saveAll() throws IOException, URISyntaxException {
-        // jdbcClient.sql("TRUNCATE TABLE flights;").update();
-        // jdbcClient.sql("TRUNCATE TABLE seats;").update();
+        jdbcClient.sql("TRUNCATE TABLE flights;").update();
+        jdbcClient.sql("TRUNCATE TABLE seats;").update();
 
         jdbcClient.sql(
                 "CREATE TABLE IF NOT EXISTS flights (id INT PRIMARY KEY, airline_name VARCHAR(255), departure_airport VARCHAR(255), destination_airport VARCHAR(255), arrival_date TIMESTAMP, flight_date TIMESTAMP, price integer)")

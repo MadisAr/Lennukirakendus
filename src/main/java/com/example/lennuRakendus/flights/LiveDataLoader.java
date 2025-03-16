@@ -10,6 +10,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
@@ -34,9 +35,10 @@ public class LiveDataLoader {
     // laeb Tallinna lennujaama kodulehelt alla pdf'i lennugraafiku
     private void downloadPDF(String url) throws URISyntaxException, MalformedURLException, IOException {
         URL u = new URI(url).toURL();
+        Path p = Paths.get("src/main/resources/data/flightSchedule.pdf");
 
         try (InputStream in = u.openStream()) {
-            Files.copy(in, Paths.get("src/main/resources/data/flightSchedule.pdf"),
+            Files.copy(in, p,
                     StandardCopyOption.REPLACE_EXISTING);
         }
     }
