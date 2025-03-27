@@ -24,13 +24,7 @@ public class FlightDataController {
     List<String> getDestinations() {
         return flightRepository.getDestinations();
     }
-
-    // tagastab kõik lennud andmebaasist
-    @GetMapping("/all")
-    List<Flight> findAll() {
-        return flightRepository.getAllFlights();
-    }
-
+    
     // teeb lennupäringu vastavalt parameetritele ja tagastab vastavad lennuds
     @GetMapping("")
     List<Flight> getFlights(@RequestParam(required = false) String flight_date,

@@ -132,13 +132,6 @@ public class FlightRepository {
                 .list();
     }
 
-    // Tagastan kõik lennud andmebaasist
-    public List<Flight> getAllFlights() {
-        return jdbcClient.sql("select * from flights")
-                .query(Flight.class)
-                .list();
-    }
-
     // teeb vastavalt parameetritele sql paringu, et saada vastavad lennud
     // andmebaasist
     List<Flight> getFlights(String flightDate, Integer minPrice, Integer maxPrice, String airlineName,
@@ -146,7 +139,7 @@ public class FlightRepository {
 
         // teen stringbuilderi, millele lisatakse jarjest sql paringu vastavaid osi kui
         // vaja
-        StringBuilder sql = new StringBuilder("SELECT * FROM flights WHERE flight_date > CURRENT_TIMESTAMP");
+        StringBuilder sql = new StringBuilder("SELECT * FROM flights WHERE 1=1 ");
         List<Object> params = new ArrayList<>();
 
         if (flightDate != null) {
@@ -206,7 +199,7 @@ public class FlightRepository {
             params.add(destinationAirport);
         }
 
-        sql.append(" ORDER BY flight_date ASC");
+        sql.append(" ORDER BY flight_date ASC;");
 
         return jdbcClient.sql(sql.toString())
                 .params(params.toArray())
